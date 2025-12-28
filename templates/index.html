@@ -4,15 +4,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SES Mock Server Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <title>IDSwift SES Mock Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #2563eb;
+            --primary-hover: #1d4ed8;
             --bg: #f8fafc;
             --card: #ffffff;
             --text: #1e293b;
+            --text-secondary: #64748b;
             --border: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
         }
 
         body {
@@ -24,7 +28,7 @@
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
@@ -32,85 +36,207 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         h1 {
             margin: 0;
             font-size: 24px;
-        }
-
-        .refresh-badge {
-            background: #dcfce7;
-            color: #166534;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
             font-weight: 600;
         }
 
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: #e0e7ff;
+            color: var(--primary);
+        }
+
+        .tab:hover:not(.active) {
+            background: #f1f5f9;
+        }
+
+        /* Filters */
+        .filters {
+            background: var(--card);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 150px;
+        }
+
+        /* Request Card */
         .request-card {
             background: var(--card);
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
         .card-header {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             border-bottom: 1px solid var(--border);
             padding-bottom: 10px;
             margin-bottom: 15px;
         }
 
-        .type-badge {
-            background: var(--primary);
-            color: white;
-            padding: 2px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-
         .timestamp {
             font-size: 13px;
-            color: #64748b;
+            color: var(--text-secondary);
         }
 
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+        .contract-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
             margin-bottom: 15px;
         }
 
-        .info-block h3 {
-            font-size: 14px;
-            margin-bottom: 8px;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+        .contract-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
         }
 
-        .info-block p {
-            margin: 4px 0;
-            font-size: 15px;
+        .type-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .type-rh {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .type-pv {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .info-item strong {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        details {
+            margin-top: 10px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        summary {
+            padding: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            color: var(--primary);
+        }
+
+        summary::after {
+            content: '▼';
+            font-size: 10px;
+            margin-left: auto;
+            transition: transform 0.2s;
+        }
+
+        details[open] summary::after {
+            transform: rotate(180deg);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         th {
             text-align: left;
             padding: 10px;
             background: #f1f5f9;
-            color: #475569;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
         }
 
         td {
@@ -124,7 +250,7 @@
             color: #e2e8f0;
             padding: 15px;
             border-radius: 8px;
-            font-family: monospace;
+            font-family: 'Monaco', 'Consolas', monospace;
             font-size: 12px;
             overflow-x: auto;
             margin-top: 15px;
@@ -138,110 +264,267 @@
             cursor: pointer;
             font-size: 12px;
             margin-top: 10px;
+            color: var(--text-secondary);
         }
 
         .btn-xml:hover {
             background: #f1f5f9;
+            color: var(--text);
         }
     </style>
-    <script>
-        function toggleXml(id) {
-            const el = document.getElementById('xml-' + id);
-            el.style.display = el.style.display === 'block' ? 'none' : 'block';
-        }
-    </script>
 </head>
 
 <body>
     <div class="container">
         <header>
-            <h1>SES Mock Server Dashboard</h1>
-            <button onclick="location.reload()" style="
-                background: var(--primary);
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: 600;
-                font-size: 14px;
-            ">Refrescar</button>
+            <h1>IDSwift SES Mock Dashboard</h1>
+            <button class="btn" onclick="location.reload()">Refrescar</button>
         </header>
 
-        {% if not requests %}
-        <div style="text-align: center; padding: 50px; color: #64748b;">
-            No se han recibido peticiones todavía.
+        <div class="tabs">
+            <div class="tab active" onclick="setTab('all')">Todas</div>
+            <div class="tab" onclick="setTab('rh')">Reservas (RH)</div>
+            <div class="tab" onclick="setTab('pv')">Altas (PV)</div>
         </div>
-        {% endif %}
 
-        {% for req in requests %}
-        <div class="request-card">
-            <div class="card-header">
-                <div>
-                    <span class="type-badge">{{ req.structured.tipo if req.structured else req.header.tipoComunicacion
-                        }}</span>
-                    <span style="margin-left: 10px; font-weight: 600;">Ref: {{ req.structured.referencia if
-                        req.structured else 'N/A' }}</span>
-                </div>
-                <span class="timestamp">{{ req.timestamp }}</span>
+        <div class="filters">
+            <div class="filter-group">
+                <label>Buscar por Nombre</label>
+                <input type="text" id="filterName" placeholder="Nombre del viajero..." oninput="applyFilters()">
             </div>
-
-            <div class="grid">
-                <div class="info-block">
-                    <h3>Cabecera SES</h3>
-                    <p><strong>Arrendador:</strong> {{ req.header.arrendador }}</p>
-                    <p><strong>Aplicación:</strong> {{ req.header.aplicacion }}</p>
-                    <p><strong>Operación:</strong> {{ req.header.tipoOperacion }}</p>
-                </div>
-                <div class="info-block">
-                    <h3>Fechas</h3>
-                    {% if req.structured %}
-                    {% for label, val in req.structured.fechas.items() %}
-                    <p><strong>{{ label }}:</strong> {{ val }}</p>
-                    {% endfor %}
-                    {% else %}
-                    <p>No data available</p>
-                    {% endif %}
-                </div>
+            <div class="filter-group">
+                <label>Fecha Reserva</label>
+                <input type="date" id="filterDateReserva" onchange="applyFilters()">
             </div>
-
-            <div class="info-block">
-                <h3>Personas / Viajeros</h3>
-                {% if req.structured and req.structured.personas %}
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nombre Completo</th>
-                            <th>Documento</th>
-                            <th>Soporte</th>
-                            <th>Nacimiento</th>
-                            <th>Nac.</th>
-                            <th>Sexo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in req.structured.personas %}
-                        <tr>
-                            <td>{{ p.nombre }}</td>
-                            <td>{{ p.documento }}</td>
-                            <td>{{ p.soporte }}</td>
-                            <td>{{ p.nacimiento }}</td>
-                            <td>{{ p.nacionalidad }}</td>
-                            <td>{{ p.sexo }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <p>No se encontraron personas en el XML.</p>
-                {% endif %}
+            <div class="filter-group">
+                <label>Fecha Entrada</label>
+                <input type="date" id="filterDateCheckin" onchange="applyFilters()">
             </div>
-
-            <button class="btn-xml" onclick="toggleXml({{ req.id }})">Ver XML Raw</button>
-            <pre id="xml-{{ req.id }}" class="xml-view">{{ req.xml | escape }}</pre>
+            <div class="filter-group">
+                <label>Fecha Salida</label>
+                <input type="date" id="filterDateCheckout" onchange="applyFilters()">
+            </div>
+            <div class="filter-group">
+                <label>Ordenar por</label>
+                <select id="sortOrder" onchange="applyFilters()">
+                    <option value="date_desc">Fecha (Más reciente)</option>
+                    <option value="date_asc">Fecha (Más antigua)</option>
+                </select>
+            </div>
         </div>
-        {% endfor %}
+
+        <div id="requestsContainer">
+            <!-- Content rendered via JS -->
+        </div>
     </div>
+
+    <script>
+        // Data passed from Flask
+        const rawData = {{ json_requests | safe }};
+        let currentTab = 'all';
+
+        function setTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(el => {
+                el.classList.remove('active');
+                if (el.textContent.includes(tab === 'rh' ? 'Reservas' : tab === 'pv' ? 'Altas' : 'Todas')) {
+                    el.classList.add('active');
+                }
+            });
+            applyFilters();
+        }
+
+        function toggleXml(id) {
+            const el = document.getElementById('xml-' + id);
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function applyFilters() {
+            const nameFilter = document.getElementById('filterName').value.toLowerCase().trim();
+            const dateReserva = document.getElementById('filterDateReserva').value;
+            const dateCheckin = document.getElementById('filterDateCheckin').value;
+            const dateCheckout = document.getElementById('filterDateCheckout').value;
+            const sortOrder = document.getElementById('sortOrder').value;
+
+            console.log("Filtering with:", { nameFilter, dateReserva, dateCheckin, dateCheckout, sortOrder, currentTab });
+
+            // Helper to normalize dates for comparison (returns YYYYMMDD)
+            const normalizeDate = (d) => {
+                if (!d) return '';
+                // Handle YYYY-MM-DDTHH:MM:SS (Oracle) -> Take first 10 chars -> YYYY-MM-DD -> Remove dashes -> YYYYMMDD
+                // Handle YYYY-MM-DD (Input) -> Remove dashes -> YYYYMMDD
+                // Handle YYYYMMDD (SES) -> Remains YYYYMMDD
+                return d.substring(0, 10).replace(/-/g, '');
+            };
+
+            let displayData = rawData.map(req => {
+                if (!req.structured || !Array.isArray(req.structured)) return null;
+
+                // Filter contracts within the request
+                let validContracts = req.structured.filter(c => {
+                    // 1. Tab Filter
+                    if (currentTab === 'rh' && c.tipo !== 'Reserva de Hospedaje (RH)') return false;
+                    if (currentTab === 'pv' && c.tipo !== 'Parte de Viajero (PV)') return false;
+
+                    // 2. Name Filter (Search in all persons)
+                    if (nameFilter) {
+                        const hasName = c.personas.some(p => {
+                            const fullName = (p.nombre || '').toLowerCase();
+                            const docNum = (p.documento || '').toLowerCase();
+                            return fullName.includes(nameFilter) || docNum.includes(nameFilter);
+                        });
+                        if (!hasName) return false;
+                    }
+
+                    // 3. Date Filters
+                    // We compare normalized dates (YYYYMMDD)
+                    if (dateReserva) {
+                        const dRes = normalizeDate(c.fechas.Reserva);
+                        const filterRes = normalizeDate(dateReserva);
+                        if (!dRes || dRes !== filterRes) return false;
+                    }
+
+                    if (dateCheckin) {
+                        const dEnt = normalizeDate(c.fechas.Entrada);
+                        const filterEnt = normalizeDate(dateCheckin);
+                        if (!dEnt || dEnt !== filterEnt) return false;
+                    }
+
+                    if (dateCheckout) {
+                        const dSal = normalizeDate(c.fechas.Salida);
+                        const filterSal = normalizeDate(dateCheckout);
+                        if (!dSal || dSal !== filterSal) return false;
+                    }
+
+                    return true;
+                });
+
+                if (validContracts.length === 0) return null;
+
+                return {
+                    ...req,
+                    structured: validContracts
+                };
+            }).filter(req => req !== null);
+
+            // Sorting
+            displayData.sort((a, b) => {
+                if (sortOrder === 'date_desc') {
+                    return new Date(b.timestamp) - new Date(a.timestamp);
+                } else if (sortOrder === 'date_asc') {
+                    return new Date(a.timestamp) - new Date(b.timestamp);
+                }
+            });
+
+            renderDashboard(displayData);
+        }
+
+        function renderDashboard(data) {
+            const container = document.getElementById('requestsContainer');
+            container.innerHTML = '';
+
+            if (data.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 50px; color: #64748b;">No se encontraron resultados.</div>';
+                return;
+            }
+
+            data.forEach(req => {
+                const card = document.createElement('div');
+                card.className = 'request-card';
+
+                let contractsHtml = '';
+                req.structured.forEach(c => {
+                    const isRh = c.tipo.includes('Reserva');
+                    const badgeClass = isRh ? 'type-rh' : 'type-pv';
+
+                    let personsRows = c.personas.map(p => `
+                        <tr>
+                            <td>${p.nombre}</td>
+                            <td>${p.documento} <br><span style="color:#64748b; font-size:11px;">Soporte: ${p.soporte}</span></td>
+                            <td>${p.nacimiento || '-'}</td>
+                            <td>${p.nacionalidad || '-'}</td>
+                            <td>${p.sexo || '-'}</td>
+                            <td style="font-size: 12px;">${p.direccion || '-'}</td>
+                            <td style="font-size: 12px;">${p.contacto || '-'}</td>
+                        </tr>
+                    `).join('');
+
+                    contractsHtml += `
+                        <div class="contract-card">
+                            <div class="contract-header">
+                                <div>
+                                    <span class="type-badge ${badgeClass}">${c.tipo}</span>
+                                    <span style="font-weight: 600; font-size: 16px; margin-left: 8px;">Ref: ${c.referencia}</span>
+                                </div>
+                            </div>
+
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <strong>Fechas</strong>
+                                    ${c.fechas.Entrada || '?'} ➝ ${c.fechas.Salida || '?'}
+                                    ${c.fechas.Reserva ? `<br><span style="font-size:11px; color:#64748b">Reserva: ${c.fechas.Reserva}</span>` : ''}
+                                </div>
+                                <div class="info-item">
+                                    <strong>Pago</strong>
+                                    ${c.fechas.Pago || 'N/A'}
+                                </div>
+                                <div class="info-item">
+                                    <strong>Viajeros</strong>
+                                    ${c.personas.length}
+                                </div>
+                            </div>
+
+                            <details>
+                                <summary>Ver ${c.personas.length} Viajeros</summary>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Nombre</th>
+                                            <th>Documento</th>
+                                            <th>Nacimiento</th>
+                                            <th>Nac.</th>
+                                            <th>Sexo</th>
+                                            <th>Dirección</th>
+                                            <th>Contacto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${personsRows}
+                                    </tbody>
+                                </table>
+                            </details>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div>
+                            <strong>Petición #${req.id}</strong>
+                        </div>
+                        <span class="timestamp">${req.timestamp}</span>
+                    </div>
+                    ${contractsHtml}
+                    <button class="btn-xml" onclick="toggleXml(${req.id})">Ver XML Raw</button>
+                    <pre id="xml-${req.id}" class="xml-view">${escapeHtml(req.xml)}</pre>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Initial render
+        applyFilters();
+    </script>
 </body>
 
 </html>

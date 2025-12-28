@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<solicitud>
+    <comunicacion>
+        <reserva>
+            <referencia>TEST-SCRIPT-001</referencia>
+            <fechaReserva>20250101</fechaReserva>
+            <fechaEntrada>20250201</fechaEntrada>
+            <fechaSalida>20250205</fechaSalida>
+        </reserva>
+        <persona>
+            <nombre>Script</nombre>
+            <apellido1>Tester</apellido1>
+            <tipoDocumento>P</tipoDocumento>
+            <numeroDocumento>S12345678</numeroDocumento>
+        </persona>
+    </comunicacion>
+</solicitud>
