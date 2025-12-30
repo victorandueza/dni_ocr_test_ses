@@ -1,3 +1,4 @@
 flask
 gunicorn
 lxml
+google-cloud-storage

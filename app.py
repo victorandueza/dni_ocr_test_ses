@@ -5,8 +5,14 @@ import io
 import os
 import logging
 from lxml import etree
-
 import json
+
+# GCS Imports
+try:
+    from google.cloud import storage
+    GCS_AVAILABLE = True
+except ImportError:
+    GCS_AVAILABLE = False
 
 app = Flask(__name__)
 
@@ -14,32 +20,72 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# File to store requests
+# Configuration
 DATA_FILE = "requests.json"
+GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "ses-mock-server-data-52284878557")
 
 # In-memory storage for received requests
 received_requests = []
 
+def get_gcs_bucket():
+    """Returns the GCS bucket object if available."""
+    if not GCS_AVAILABLE:
+        return None
+    try:
+        client = storage.Client()
+        return client.bucket(GCS_BUCKET_NAME)
+    except Exception as e:
+        logger.error(f"Error getting GCS bucket: {e}")
+        return None
+
 def load_data():
-    """Loads requests from the JSON file."""
+    """Loads requests from GCS or local JSON file."""
     global received_requests
+    
+    # Try GCS first
+    if GCS_AVAILABLE:
+        bucket = get_gcs_bucket()
+        if bucket:
+            try:
+                blob = bucket.blob(DATA_FILE)
+                if blob.exists():
+                    data = blob.download_as_text()
+                    received_requests = json.loads(data)
+                    logger.info(f"Loaded {len(received_requests)} requests from GCS bucket {GCS_BUCKET_NAME}")
+                    return
+            except Exception as e:
+                logger.error(f"Error loading from GCS: {e}")
+
+    # Fallback to local file
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
                 received_requests = json.load(f)
-            logger.info(f"Loaded {len(received_requests)} requests from {DATA_FILE}")
+            logger.info(f"Loaded {len(received_requests)} requests from local file {DATA_FILE}")
         except Exception as e:
-            logger.error(f"Error loading data: {e}")
+            logger.error(f"Error loading local data: {e}")
             received_requests = []
 
 def save_data():
-    """Saves requests to the JSON file."""
+    """Saves requests to GCS and local JSON file."""
+    # Save locally first
     try:
         with open(DATA_FILE, "w") as f:
             json.dump(received_requests, f, indent=4)
-        logger.info(f"Saved {len(received_requests)} requests to {DATA_FILE}")
+        logger.info(f"Saved {len(received_requests)} requests to local file {DATA_FILE}")
     except Exception as e:
-        logger.error(f"Error saving data: {e}")
+        logger.error(f"Error saving local data: {e}")
+
+    # Save to GCS
+    if GCS_AVAILABLE:
+        bucket = get_gcs_bucket()
+        if bucket:
+            try:
+                blob = bucket.blob(DATA_FILE)
+                blob.upload_from_string(json.dumps(received_requests, indent=4), content_type='application/json')
+                logger.info(f"Saved {len(received_requests)} requests to GCS bucket {GCS_BUCKET_NAME}")
+            except Exception as e:
+                logger.error(f"Error saving to GCS: {e}")
 
 # Load data on startup
 load_data()
@@ -104,7 +150,11 @@ def parse_ses_xml(xml_content):
                     data["personas"].append(p_data)
                 
                 contracts.append(data)
-            return contracts
+            return {
+                "tipo": "Reserva de Hospedaje (RH)",
+                "contracts": contracts,
+                "raw_xml": xml_content
+            }
 
         # Standard SES XML parsing
         
@@ -199,10 +249,40 @@ def parse_ses_xml(xml_content):
             
             contracts.append(data)
             
-        return contracts
+        # Determine overall type based on what we found
+        # If we found at least one "Parte de Viajero", we call it PV.
+        # If we found "Reserva", we call it RH.
+        # This logic might need to be more robust if mixed types are possible, 
+        # but usually a file is one or the other.
+        
+        overall_type = "Desconocido"
+        # Check raw string for type as requested for robustness
+        if "<tipoComunicacion>RH</tipoComunicacion>" in xml_content:
+            overall_type = "Reserva de Hospedaje (RH)"
+        elif "<tipoComunicacion>PV</tipoComunicacion>" in xml_content:
+            overall_type = "Parte de Viajero (PV)"
+        else:
+            # Fallback to inferring from parsed content
+            if contracts:
+                first_type = contracts[0].get("tipo", "")
+                if "Parte" in first_type:
+                    overall_type = "Parte de Viajero (PV)"
+                elif "Reserva" in first_type:
+                    overall_type = "Reserva de Hospedaje (RH)"
+
+        return {
+            "tipo": overall_type,
+            "contracts": contracts,
+            "raw_xml": xml_content
+        }
     except Exception as e:
         logger.error(f"Error parsing inner XML: {e}")
-        return []
+        return {
+            "tipo": "Error",
+            "contracts": [],
+            "raw_xml": xml_content,
+            "error": str(e)
+        }
 
 @app.route("/", methods=["GET"])
 def index():
@@ -279,6 +359,35 @@ def mock_ses():
     except Exception as e:
         logger.exception("Error processing mock request")
         return str(e), 500
+
+@app.route("/delete/<int:request_id>", methods=["DELETE"])
+def delete_request(request_id):
+    global received_requests
+    try:
+        # Filter out the request with the given ID
+        received_requests = [req for req in received_requests if req["id"] != request_id]
+        
+        # Save changes
+        save_data()
+        
+        return jsonify({"success": True, "message": f"Request {request_id} deleted"}), 200
+    except Exception as e:
+        logger.error(f"Error deleting request {request_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/delete-all", methods=["DELETE"])
+def delete_all_requests():
+    global received_requests
+    try:
+        received_requests = []
+        
+        # Save changes
+        save_data()
+        
+        return jsonify({"success": True, "message": "All requests deleted"}), 200
+    except Exception as e:
+        logger.error(f"Error deleting all requests: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))

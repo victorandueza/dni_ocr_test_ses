@@ -278,7 +278,11 @@
     <div class="container">
         <header>
             <h1>IDSwift SES Mock Dashboard</h1>
-            <button class="btn" onclick="location.reload()">Refrescar</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" style="background-color: #ef4444;" onclick="deleteAllRequests()">Borrar
+                    Todo</button>
+                <button class="btn" onclick="location.reload()">Refrescar</button>
+            </div>
         </header>
 
         <div class="tabs">
@@ -358,13 +362,34 @@
             };
 
             let displayData = rawData.map(req => {
-                if (!req.structured || !Array.isArray(req.structured)) return null;
+                if (!req.structured) return null;
+
+                // Normalize structured data to always have a list of contracts and a type
+                let contracts = [];
+                let requestType = 'Desconocido';
+
+                if (Array.isArray(req.structured)) {
+                    // Legacy format: structured is just the list of contracts
+                    contracts = req.structured;
+                    // Infer type from first contract if possible
+                    if (contracts.length > 0) {
+                        if (contracts[0].tipo.includes('Reserva')) requestType = 'Reserva de Hospedaje (RH)';
+                        else if (contracts[0].tipo.includes('Parte')) requestType = 'Parte de Viajero (PV)';
+                    }
+                } else {
+                    // New format: structured is { tipo, contracts, ... }
+                    contracts = req.structured.contracts || [];
+                    requestType = req.structured.tipo || 'Desconocido';
+                }
 
                 // Filter contracts within the request
-                let validContracts = req.structured.filter(c => {
+                let validContracts = contracts.filter(c => {
                     // 1. Tab Filter
-                    if (currentTab === 'rh' && c.tipo !== 'Reserva de Hospedaje (RH)') return false;
-                    if (currentTab === 'pv' && c.tipo !== 'Parte de Viajero (PV)') return false;
+                    // Filter based on the REQUEST type, not just contract type, 
+                    // but usually they match. The user wants to filter "Requests".
+                    // If the tab is RH, we show if the Request is RH.
+                    if (currentTab === 'rh' && !requestType.includes('Reserva')) return false;
+                    if (currentTab === 'pv' && !requestType.includes('Parte')) return false;
 
                     // 2. Name Filter (Search in all persons)
                     if (nameFilter) {
@@ -403,7 +428,10 @@
 
                 return {
                     ...req,
-                    structured: validContracts
+                    // We keep the original structured data but attach the filtered contracts for rendering
+                    // or just replace it for the view. Let's attach a helper property.
+                    _filteredContracts: validContracts,
+                    _requestType: requestType
                 };
             }).filter(req => req !== null);
 
@@ -432,8 +460,21 @@
                 const card = document.createElement('div');
                 card.className = 'request-card';
 
+                const contracts = req._filteredContracts;
+                const requestType = req._requestType;
+
+                // Determine Badge for the Header
+                let headerBadge = '';
+                if (requestType.includes('Reserva') || requestType === 'RH') {
+                    headerBadge = '<span class="badge bg-info text-dark me-2" style="background-color: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Reserva (RH)</span>';
+                } else if (requestType.includes('Parte') || requestType === 'PV') {
+                    headerBadge = '<span class="badge bg-success me-2" style="background-color: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Parte de Viajero (PV)</span>';
+                } else {
+                    headerBadge = `<span class="badge me-2" style="background-color: #f1f5f9; color: #64748b; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">${requestType}</span>`;
+                }
+
                 let contractsHtml = '';
-                req.structured.forEach(c => {
+                contracts.forEach(c => {
                     const isRh = c.tipo.includes('Reserva');
                     const badgeClass = isRh ? 'type-rh' : 'type-pv';
 
@@ -499,10 +540,14 @@
 
                 card.innerHTML = `
                     <div class="card-header">
-                        <div>
+                        <div style="display: flex; align-items: center;">
+                            ${headerBadge}
                             <strong>Petición #${req.id}</strong>
                         </div>
-                        <span class="timestamp">${req.timestamp}</span>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="timestamp">${req.timestamp}</span>
+                            <button class="btn" style="background-color: #ef4444; padding: 4px 8px; font-size: 12px;" onclick="deleteRequest(${req.id})">Borrar</button>
+                        </div>
                     </div>
                     ${contractsHtml}
                     <button class="btn-xml" onclick="toggleXml(${req.id})">Ver XML Raw</button>
@@ -524,6 +569,48 @@
 
         // Initial render
         applyFilters();
+
+        async function deleteRequest(id) {
+            if (!confirm('¿Estás seguro de que quieres borrar esta petición?')) return;
+
+            try {
+                const response = await fetch(`/delete/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+
+                if (result.success) {
+                    // Remove from local data and re-render
+                    const index = rawData.findIndex(r => r.id === id);
+                    if (index > -1) {
+                        rawData.splice(index, 1);
+                        applyFilters();
+                    }
+                } else {
+                    alert('Error al borrar: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al borrar la petición');
+            }
+        }
+
+        async function deleteAllRequests() {
+            if (!confirm('¿Estás seguro de que quieres borrar TODAS las peticiones? Esta acción no se puede deshacer.')) return;
+
+            try {
+                const response = await fetch('/delete-all', { method: 'DELETE' });
+                const result = await response.json();
+
+                if (result.success) {
+                    rawData.length = 0; // Clear array
+                    applyFilters();
+                } else {
+                    alert('Error al borrar todo: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al borrar todas las peticiones');
+            }
+        }
     </script>
 </body>
 
